@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
+const SUPABASE_URL = "https://xtgfkriudzwpobkfufow.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Z2Zrcml1ZHp3cG9ia2Z1Zm93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwOTIxNDYsImV4cCI6MjA5NDY2ODE0Nn0.47l-Z8hrMmd4X2FlVb-hspkNjxuQ7DCt91EskEGvY1A";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const ADMIN_EMAIL = "mahmud716868@gmail.com";
+
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
   @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css');
