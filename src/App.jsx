@@ -878,21 +878,8 @@ function StepTwo({ store, onBack, onViewData }) {
     }
   };
 
-  // columns এখনো load হয়নি
-  if(columns.length===0) return (
-    <div>
-      <div className="panel">
-        <div className="empty-state">
-          <i className="ti ti-loader" style={{animation:"spin .8s linear infinite"}}/>
-          <p>কলাম লোড হচ্ছে...</p>
-          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={onBack}>
-            <i className="ti ti-arrow-left"/> কলাম সেটআপে যান
-          </button>
-        </div>
-      </div>
-      <button className="back-btn" onClick={onBack}><i className="ti ti-arrow-left"/> পেছনে</button>
-    </div>
-  );
+  // columns এখনো load হয়নি — এটা আর দরকার নেই কারণ ExcelTab নিজেই handle করে
+  // if(columns.length===0) ... removed
 
   return (
     <div>
@@ -998,7 +985,14 @@ function StepThree({ store, tabName, onBack, onAddEntry }) {
     setSelectedIds(new Set());
   };
 
-  const openEdit=idx=>{setEditVals({...entries[idx]});setEditModal({idx});};
+  const openEdit=idx=>{
+    const entry=entries[idx];
+    // শুধু column-এর data নাও, __id ও __serial বাদ দাও
+    const clean={};
+    columns.forEach(c=>{ clean[c.name]=entry[c.name]??""});
+    setEditVals(clean);
+    setEditModal({idx});
+  };
   const saveEdit=async()=>{
     setEditSaving(true);
     await updateEntry(editModal.idx,editVals);
@@ -1204,17 +1198,23 @@ function StepThree({ store, tabName, onBack, onAddEntry }) {
 // ─── ExcelTab + MainApp + Root App ─────────────────────────────────────────────
 function ExcelTab({ user, excelId, tabName, onBack }) {
   const store=useExcelStore(user,excelId);
-  const [step,setStep]=useState(0); // 0 = not yet determined
+  const stepKey=`et_step_${user.id}_${excelId}`;
+  const [step,setStep]=useState(0);
+
+  const goStep=useCallback((s)=>{
+    setStep(s);
+    localStorage.setItem(stepKey, String(s));
+  },[stepKey]);
 
   useEffect(()=>{
     if(!store.loading){
-      if(store.entries.length>0) setStep(3);
-      else if(store.columns.length>0) setStep(2);
-      else setStep(1);
+      // entries আছে → 3, columns আছে → 2, নতুন → 1
+      if(store.entries.length>0) goStep(3);
+      else if(store.columns.length>0) goStep(2);
+      else goStep(1);
     }
   },[store.loading]); // eslint-disable-line
 
-  // loading বা step এখনো determine হয়নি
   if (store.loading || step===0) {
     return (
       <div style={{padding:28}}>
@@ -1233,7 +1233,11 @@ function ExcelTab({ user, excelId, tabName, onBack }) {
         {[{n:1,icon:"ti-layout-columns",label:"কলাম সেটআপ"},{n:2,icon:"ti-forms",label:"ডেটা এন্ট্রি"},{n:3,icon:"ti-table",label:"ডেটা ও ডাউনলোড"}].map((s,i,arr)=>(
           <span key={s.n} style={{display:"flex",alignItems:"center",flex:i<arr.length-1?"1":"0"}}>
             <button className={`step-btn ${step===s.n?"active":step>s.n?"done":""}`}
-              onClick={()=>{if(s.n<step)setStep(s.n);else if(s.n===2&&store.columns.length>0)setStep(2);else if(s.n===3&&store.entries.length>0)setStep(3);}}>
+              onClick={()=>{
+                if(s.n<step) goStep(s.n);
+                else if(s.n===2&&store.columns.length>0) goStep(2);
+                else if(s.n===3&&store.entries.length>0) goStep(3);
+              }}>
               <span className="step-icon">{step>s.n?<i className="ti ti-check"/>:<i className={`ti ${s.icon}`}/>}</span>
               <span style={{display:"block"}}>{s.label}</span>
             </button>
@@ -1241,9 +1245,9 @@ function ExcelTab({ user, excelId, tabName, onBack }) {
           </span>
         ))}
       </div>
-      {step===1&&<StepOne store={store} onNext={()=>setStep(2)}/>}
-      {step===2&&<StepTwo store={store} onBack={()=>setStep(1)} onViewData={()=>setStep(3)}/>}
-      {step===3&&<StepThree store={store} tabName={tabName} onBack={()=>setStep(2)} onAddEntry={()=>setStep(2)}/>}
+      {step===1&&<StepOne store={store} onNext={()=>goStep(2)}/>}
+      {step===2&&<StepTwo store={store} onBack={()=>goStep(1)} onViewData={()=>goStep(3)}/>}
+      {step===3&&<StepThree store={store} tabName={tabName} onBack={()=>goStep(2)} onAddEntry={()=>goStep(2)}/>}
     </div>
   );
 }
@@ -1255,10 +1259,11 @@ function MainApp({ user, onLogout }) {
     return [{id:"default",name:"Excel ১"}];
   });
   const [activeTab,setActiveTab]=useState(()=>{
-    const saved=localStorage.getItem(`et_active_${user.id}`);
-    // শুধু valid tab id হলে restore করব
-    const tabs2=JSON.parse(localStorage.getItem(`et_${user.id}`)||"[]");
-    if(saved&&tabs2.find&&tabs2.find(t=>t.id===saved)) return saved;
+    try {
+      const tabs2=JSON.parse(localStorage.getItem(`et_${user.id}`)||"[]");
+      const saved=localStorage.getItem(`et_active_${user.id}`);
+      if(saved && Array.isArray(tabs2) && tabs2.find(t=>t.id===saved)) return saved;
+    } catch(e){}
     return null;
   });
   const [renamingId,setRenamingId]=useState(null);
