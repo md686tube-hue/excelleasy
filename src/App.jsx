@@ -1145,6 +1145,14 @@ function ExcelTab({ user, excelId, tabName, onBack }) {
   const store=useExcelStore(user,excelId);
   const [step,setStep]=useState(1);
 
+  // Auto-advance: columns আছে → step 2, entries আছে → step 3
+  useEffect(()=>{
+    if(!store.loading){
+      if(store.entries.length>0) setStep(3);
+      else if(store.columns.length>0) setStep(2);
+    }
+  },[store.loading]); // eslint-disable-line
+
   if (store.loading) {
     return (
       <div style={{padding:28}}>
