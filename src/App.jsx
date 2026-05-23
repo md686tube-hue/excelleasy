@@ -636,7 +636,7 @@ function useExcelStore(user, excelId) {
       ]);
       if (!mounted.current) return;
       if (cfgRes.data){setColumns(cfgRes.data.columns||[]);setDupCheckState(cfgRes.data.dup_check||false);setPrimaryColState(cfgRes.data.primary_col||"");}
-      if (entRes.data) setEntries(entRes.data.map(e=>({...e.data,__id:e.id,__serial:e.serial})));
+      if (entRes.data) setEntries(entRes.data.map(e=>({...e.data,__id:e.id,__serial:e.serial||e.serial_no||0})));
       setLoading(false);
     })();
   },[user,excelId,mounted]);
@@ -673,13 +673,31 @@ function useExcelStore(user, excelId) {
       if (dup) return {duplicate:true,field:primaryCol};
     }
     setSaving(true);
-    const serial=(entries.length>0?Math.max(...entries.map(e=>e.__serial||0)):0)+1;
-    const {data,error}=await supabase.from("entries").insert({user_id:user.id,form_id:excelId,serial,data:values}).select().single();
+    const serialNum=(entries.length>0?Math.max(...entries.map(e=>e.__serial||0)):0)+1;
+
+    // serial বা serial_no — যেটা database-এ আছে সেটা দিয়ে try করব
+    let insertData={user_id:user.id,form_id:excelId,data:values};
+    let data,error;
+
+    // প্রথমে serial দিয়ে try
+    ({data,error}=await supabase.from("entries").insert({...insertData,serial:serialNum}).select().single());
+
+    // যদি serial কাজ না করে, serial_no দিয়ে try
+    if(error&&error.message&&error.message.includes("serial")){
+      ({data,error}=await supabase.from("entries").insert({...insertData,serial_no:serialNum}).select().single());
+    }
+
+    // যদি দুটোতেই error, serial ছাড়া insert করো
+    if(error&&error.message&&(error.message.includes("serial"))){
+      ({data,error}=await supabase.from("entries").insert(insertData).select().single());
+    }
+
     if (!mounted.current) return {};
     setSaving(false);
     if (error) return {error:error.message};
-    setEntries(prev=>[...prev,{...values,__id:data.id,__serial:serial}]);
-    return {serial};
+    const actualSerial=data.serial||data.serial_no||serialNum;
+    setEntries(prev=>[...prev,{...values,__id:data.id,__serial:actualSerial}]);
+    return {serial:actualSerial};
   },[user,excelId,entries,dupCheck,primaryCol,mounted]);
 
   const deleteEntry = useCallback(async(idx)=>{
@@ -730,8 +748,15 @@ function useExcelStore(user, excelId) {
     const added=[];
     for (const row of rows) {
       serial++;
-      const {data}=await supabase.from("entries").insert({user_id:user.id,form_id:excelId,serial,data:row}).select().single();
-      if (data) added.push({...row,__id:data.id,__serial:serial});
+      let d,err;
+      ({data:d,error:err}=await supabase.from("entries").insert({user_id:user.id,form_id:excelId,serial,data:row}).select().single());
+      if(err&&err.message&&err.message.includes("serial")){
+        ({data:d,error:err}=await supabase.from("entries").insert({user_id:user.id,form_id:excelId,serial_no:serial,data:row}).select().single());
+      }
+      if(err&&err.message&&err.message.includes("serial")){
+        ({data:d,error:err}=await supabase.from("entries").insert({user_id:user.id,form_id:excelId,data:row}).select().single());
+      }
+      if (d) added.push({...row,__id:d.id,__serial:d.serial||d.serial_no||serial});
     }
     setEntries(prev=>[...prev,...added]);
     setSaving(false);
@@ -1192,7 +1217,13 @@ function MainApp({ user, onLogout }) {
     if(s){try{return JSON.parse(s);}catch{}}
     return [{id:"default",name:"Excel ১"}];
   });
-  const [activeTab,setActiveTab]=useState(null);
+  const [activeTab,setActiveTab]=useState(()=>{
+    const saved=localStorage.getItem(`et_active_${user.id}`);
+    // শুধু valid tab id হলে restore করব
+    const tabs2=JSON.parse(localStorage.getItem(`et_${user.id}`)||"[]");
+    if(saved&&tabs2.find&&tabs2.find(t=>t.id===saved)) return saved;
+    return null;
+  });
   const [renamingId,setRenamingId]=useState(null);
   const [renameVal,setRenameVal]=useState("");
   const [newTabModal,setNewTabModal]=useState(false);
@@ -1201,6 +1232,10 @@ function MainApp({ user, onLogout }) {
   const [countCache,setCountCache]=useState({});
 
   useEffect(()=>{localStorage.setItem(`et_${user.id}`,JSON.stringify(tabs));},[tabs,user.id]);
+  useEffect(()=>{
+    if(activeTab) localStorage.setItem(`et_active_${user.id}`,activeTab);
+    else localStorage.removeItem(`et_active_${user.id}`);
+  },[activeTab,user.id]);
 
   // Load entry counts for dashboard
   useEffect(()=>{
