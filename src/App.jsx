@@ -1339,7 +1339,7 @@ export default function App() {
     <>
       <nav className="navbar"><div className="navbar-brand"><i className="ti ti-file-spreadsheet"/><span>Excel ডেটা এন্ট্রি</span></div><div className="navbar-actions"><button className="btn btn-ghost btn-sm" onClick={handleLogout}><i className="ti ti-logout"/> লগআউট</button></div></nav>
       <div className="pending-notice"><div className="pending-card">
-        {profile.status==="rejected"?<><i className="ti ti-x-circle" style={{color:"var(--red)"}}/><h2>অ্যাকাউন্ট বাতিল</h2><p>Admin কর্তৃক বাতিল করা হয়েছে।</>
+        {profile.status==="rejected"?<><i className="ti ti-x-circle" style={{color:"var(--red)"}}/><h2>অ্যাকাউন্ট বাতিল</h2><p>Admin কর্তৃক বাতিল করা হয়েছে।</p></>
         :profile.status==="blocked"?<><i className="ti ti-ban" style={{color:"var(--purple)"}}/><h2>অ্যাকাউন্ট ব্লক</h2><p>Admin কর্তৃক ব্লক করা হয়েছে।</p></>
         :<><i className="ti ti-clock"/><h2>অনুমোদনের অপেক্ষায়</h2><p>অ্যাকাউন্ট তৈরি হয়েছে। Admin অনুমোদন দিলে ব্যবহার করতে পারবেন।</p></>}
         <button className="btn btn-outline" onClick={handleLogout}><i className="ti ti-logout"/> লগআউট</button>
