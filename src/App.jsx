@@ -632,11 +632,11 @@ function useExcelStore(user, excelId) {
       setLoading(true);
       const [cfgRes,entRes] = await Promise.all([
         supabase.from("excel_configs").select("*").eq("user_id",user.id).eq("form_id",excelId).single(),
-        supabase.from("entries").select("*").eq("user_id",user.id).eq("form_id",excelId).order("serial",{ascending:true}),
+        supabase.from("entries").select("*").eq("user_id",user.id).eq("form_id",excelId).order("created_at",{ascending:true}),
       ]);
       if (!mounted.current) return;
       if (cfgRes.data){setColumns(cfgRes.data.columns||[]);setDupCheckState(cfgRes.data.dup_check||false);setPrimaryColState(cfgRes.data.primary_col||"");}
-      if (entRes.data) setEntries(entRes.data.map(e=>({...e.data,__id:e.id,__serial:e.serial||e.serial_no||0})));
+      if (entRes.data) setEntries(entRes.data.map((e,i)=>({...e.data,__id:e.id,__serial:e.serial||e.serial_no||e.id||i+1})));
       setLoading(false);
     })();
   },[user,excelId,mounted]);
@@ -833,7 +833,7 @@ function StepTwo({ store, onBack, onViewData }) {
     const init={};
     columns.forEach(c=>{if(c.type==="date")init[c.name]=new Date().toISOString().split("T")[0];});
     setVals(init);
-  },[]); // eslint-disable-line
+  },[columns.length]); // eslint-disable-line
 
   useEffect(()=>{
     const h=e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")handleSubmit();};
@@ -1060,19 +1060,25 @@ function StepThree({ store, tabName, onBack, onAddEntry }) {
           <thead><tr>
             <th className="cb"><input type="checkbox" checked={allSelected} onChange={toggleAll} style={{cursor:"pointer"}}/></th>
             <th onClick={()=>handleSort("__serial")} style={{cursor:"pointer"}}># <i className={`ti ${sortCol==="__serial"?sortDir==="asc"?"ti-sort-ascending":"ti-sort-descending":"ti-selector"}`} style={{fontSize:11,opacity:.6}}/></th>
-            {columns.map(c=><th key={c.id} onClick={()=>c.type!=="image"&&handleSort(c.name)} style={{cursor:c.type==="image"?"default":"pointer"}}>
-              {c.name}{c.type!=="image"&&<i className={`ti ${sortCol===c.name?sortDir==="asc"?"ti-sort-ascending":"ti-sort-descending":"ti-selector"}`} style={{fontSize:11,marginLeft:4,opacity:.6}}/>}
-            </th>)}
+            {columns.length>0
+              ? columns.map(c=><th key={c.id} onClick={()=>c.type!=="image"&&handleSort(c.name)} style={{cursor:c.type==="image"?"default":"pointer"}}>
+                  {c.name}{c.type!=="image"&&<i className={`ti ${sortCol===c.name?sortDir==="asc"?"ti-sort-ascending":"ti-sort-descending":"ti-selector"}`} style={{fontSize:11,marginLeft:4,opacity:.6}}/>}
+                </th>)
+              : Object.keys(entries[0]||{}).filter(k=>!k.startsWith("__")).map(k=><th key={k}>{k}</th>)
+            }
             <th style={{width:80}}>অ্যাকশন</th>
           </tr></thead>
           <tbody>{filtered.map((entry,idx)=>(
             <tr key={entry.__id||idx} style={selectedIds.has(entry.__id)?{background:"var(--blue-light)"}:{}}>
               <td><input type="checkbox" checked={selectedIds.has(entry.__id)} onChange={()=>toggleOne(entry.__id)} style={{cursor:"pointer"}}/></td>
-              <td style={{color:"var(--text4)",fontWeight:600,fontSize:13}}>{entry.__serial}</td>
-              {columns.map(c=><td key={c.id}>
-                {c.type==="image"&&entry[c.name]?<img src={entry[c.name]} alt="" style={{width:40,height:40,objectFit:"cover",borderRadius:7,border:"1px solid var(--border)"}}/>
-                :<span style={{fontSize:13}}>{entry[c.name]??"—"}</span>}
-              </td>)}
+              <td style={{color:"var(--text4)",fontWeight:600,fontSize:13}}>{entry.__serial||idx+1}</td>
+              {columns.length>0
+                ? columns.map(c=><td key={c.id}>
+                    {c.type==="image"&&entry[c.name]?<img src={entry[c.name]} alt="" style={{width:40,height:40,objectFit:"cover",borderRadius:7,border:"1px solid var(--border)"}}/>
+                    :<span style={{fontSize:13}}>{entry[c.name]??"—"}</span>}
+                  </td>)
+                : Object.keys(entries[0]||{}).filter(k=>!k.startsWith("__")).map(k=><td key={k}><span style={{fontSize:13}}>{entry[k]??"—"}</span></td>)
+              }
               <td><div style={{display:"flex",gap:4}}>
                 <button className="btn btn-ghost-dark btn-sm" style={{color:"var(--blue)",padding:"4px 8px"}} onClick={()=>openEdit(entries.indexOf(entry))}><i className="ti ti-edit"/></button>
                 <button className="btn btn-ghost-dark btn-sm" style={{color:"var(--red)",padding:"4px 8px"}} onClick={async()=>{await deleteEntry(entries.indexOf(entry));toast("এন্ট্রি মুছে ফেলা হয়েছে","success");}}><i className="ti ti-trash"/></button>
