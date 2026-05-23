@@ -830,8 +830,12 @@ function StepTwo({ store, onBack, onViewData }) {
   const toast=useToast();
 
   useEffect(()=>{
+    if(columns.length===0) return;
     const init={};
-    columns.forEach(c=>{if(c.type==="date")init[c.name]=new Date().toISOString().split("T")[0];});
+    columns.forEach(c=>{
+      if(c.type==="date") init[c.name]=new Date().toISOString().split("T")[0];
+      else init[c.name]="";
+    });
     setVals(init);
   },[columns.length]); // eslint-disable-line
 
@@ -845,6 +849,7 @@ function StepTwo({ store, onBack, onViewData }) {
 
   const handleSubmit=async()=>{
     setMsg(null);
+    if(columns.length===0){setMsg({type:"error",text:"প্রথমে কলাম সেটআপ করুন"});return;}
     for (const col of columns) {
       const v=vals[col.name];
       if(col.type==="image")continue;
@@ -865,10 +870,29 @@ function StepTwo({ store, onBack, onViewData }) {
       toast(`✓ এন্ট্রি #${res.serial} সফলভাবে যোগ হয়েছে!`,"success");
       setMsg({type:"success",text:`এন্ট্রি #${res.serial} সফলভাবে যোগ হয়েছে!`});
       const reset={};
-      columns.forEach(c=>{if(c.type==="date")reset[c.name]=new Date().toISOString().split("T")[0];});
+      columns.forEach(c=>{
+        if(c.type==="date") reset[c.name]=new Date().toISOString().split("T")[0];
+        else reset[c.name]="";
+      });
       setVals(reset);
     }
   };
+
+  // columns এখনো load হয়নি
+  if(columns.length===0) return (
+    <div>
+      <div className="panel">
+        <div className="empty-state">
+          <i className="ti ti-loader" style={{animation:"spin .8s linear infinite"}}/>
+          <p>কলাম লোড হচ্ছে...</p>
+          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={onBack}>
+            <i className="ti ti-arrow-left"/> কলাম সেটআপে যান
+          </button>
+        </div>
+      </div>
+      <button className="back-btn" onClick={onBack}><i className="ti ti-arrow-left"/> পেছনে</button>
+    </div>
+  );
 
   return (
     <div>
@@ -1180,17 +1204,18 @@ function StepThree({ store, tabName, onBack, onAddEntry }) {
 // ─── ExcelTab + MainApp + Root App ─────────────────────────────────────────────
 function ExcelTab({ user, excelId, tabName, onBack }) {
   const store=useExcelStore(user,excelId);
-  const [step,setStep]=useState(1);
+  const [step,setStep]=useState(0); // 0 = not yet determined
 
-  // Auto-advance: columns আছে → step 2, entries আছে → step 3
   useEffect(()=>{
     if(!store.loading){
       if(store.entries.length>0) setStep(3);
       else if(store.columns.length>0) setStep(2);
+      else setStep(1);
     }
   },[store.loading]); // eslint-disable-line
 
-  if (store.loading) {
+  // loading বা step এখনো determine হয়নি
+  if (store.loading || step===0) {
     return (
       <div style={{padding:28}}>
         <div style={{display:"flex",gap:12,marginBottom:20}}>
