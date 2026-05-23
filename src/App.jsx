@@ -1044,9 +1044,15 @@ function StepThree({ store, tabName, onBack, onAddEntry }) {
             <button className="btn btn-outline btn-sm" onClick={()=>{setImportModal(true);setImportRows(null);}}><i className="ti ti-file-import"/> Import</button>
             <button className="btn btn-success btn-sm" onClick={dlExcel} disabled={!entries.length}><i className="ti ti-file-excel"/> Excel</button>
             <button className="btn btn-sm" style={{background:"white",color:"#dc2626",border:"1.5px solid #dc2626"}} onClick={()=>setDlModal(true)} disabled={!entries.length}><i className="ti ti-file-type-pdf"/> PDF/Word</button>
-            <button className="btn btn-outline btn-sm" onClick={onAddEntry}><i className="ti ti-plus"/> এন্ট্রি যোগ</button>
             <button className="btn btn-danger btn-sm btn-icon" onClick={()=>setConfirmClear(true)} title="সব মুছুন"><i className="ti ti-trash"/></button>
           </div>
+        </div>
+
+        {/* New Entry prominent button */}
+        <div style={{marginBottom:14}}>
+          <button className="btn btn-primary" style={{width:"100%",padding:"13px",fontSize:15,justifyContent:"center",borderRadius:10}} onClick={onAddEntry}>
+            <i className="ti ti-plus" style={{fontSize:18}}/> নতুন ডেটা এন্ট্রি করুন
+          </button>
         </div>
 
         {/* Stats */}
